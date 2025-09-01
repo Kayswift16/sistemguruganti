@@ -1,3 +1,15 @@
+<script type="importmap">
+{
+  "imports": {
+    "react": "https://aistudiocdn.com/react@^19.1.1",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.1.1/",
+    "react/": "https://aistudiocdn.com/react@^19.1.1/",
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.16.0",
+    "jspdf": "https://aistudiocdn.com/jspdf@^3.0.2",
+    "html2canvas": "https://aistudiocdn.com/html2canvas@^1.4.1"
+  }
+}
+</script>
 <!DOCTYPE html>
 <html lang="en">
   <head>
@@ -20,34 +32,4 @@
     </script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    
-    <!-- In-browser transpiler for TSX/JSX -->
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-
-    <!-- Import Map to resolve modules like 'react' from a CDN -->
-    <script type="importmap">
-{
-  "imports": {
-    "react": "https://esm.sh/react@18.3.1",
-    "react-dom/client": "https://esm.sh/react-dom@18.3.1/client",
-    "jspdf": "https://esm.sh/jspdf@2.5.1",
-    "html2canvas": "https://esm.sh/html2canvas@1.4.1",
-    "@google/genai": "https://esm.sh/@google/genai@0.14.0",
-    "react-dom/": "https://aistudiocdn.com/react-dom@^19.1.1/",
-    "react/": "https://aistudiocdn.com/react@^19.1.1/"
-  }
-}
-</script>
-  </head>
-  <body class="bg-slate-50">
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
-    
-    <!-- 
-      - The 'type' is changed to 'text/babel' to tell Babel to transpile this script.
-      - 'data-type="module"' ensures it's treated as an ES module, allowing 'import' syntax. 
-    -->
-    <script type="text/babel" data-type="module" src="index.tsx"></script>
-  </body>
-</html>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;

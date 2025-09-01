@@ -6,6 +6,7 @@ import { TEACHERS, TIMETABLE } from './constants';
 import { Teacher, Substitution, AbsentTeacherInfo } from './types';
 import { generateSubstitutionPlan } from './services/geminiService';
 import LoadingSpinner from './components/LoadingSpinner';
+import SubstitutionCard from './components/SubstitutionCard';
 
 const GraduationCapIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M22 10v6M2 10l10-5 10 5-10 5z"></path><path d="M6 12v5c0 1.7.7 3.2 1.9 4.2a2 2 0 0 0 2.2 0c1.2-1 1.9-2.5 1.9-4.2v-5"></path></svg>
@@ -222,7 +223,6 @@ const App: React.FC = () => {
       });
 
       const addFooter = (doc: jsPDF) => {
-        // FIX: The `getNumberOfPages` method is on the jsPDF instance, not on the internal property.
         const pageCount = doc.getNumberOfPages();
         for (let i = 1; i <= pageCount; i++) {
             doc.setPage(i);
@@ -365,9 +365,9 @@ const App: React.FC = () => {
                   </div>
                 </div>
 
-                <div ref={pdfContentRef} className="p-4 bg-white rounded-xl shadow-lg border border-slate-200">
+                <div ref={pdfContentRef} className="p-4 bg-transparent rounded-xl">
                   {reportInfo && (
-                    <div className="p-2 mb-6">
+                    <div className="p-6 mb-6 bg-white rounded-xl shadow-lg border border-slate-200">
                       <h3 className="text-lg font-bold text-slate-800 mb-4 border-b border-slate-200 pb-3">Jadual Guru Ganti</h3>
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
                           <div><p className="font-semibold text-slate-500">Disediakan Oleh:</p><p className="text-slate-800 font-medium">{preparerName || 'Tidak Dinyatakan'}</p></div>
@@ -378,68 +378,20 @@ const App: React.FC = () => {
                   )}
                   
                   {substitutionPlan.length > 0 ? (
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-sm text-left">
-                           <thead className="bg-slate-100 text-slate-600 uppercase">
-                                <tr>
-                                    <th className="px-4 py-3 font-semibold">Masa</th>
-                                    <th className="px-4 py-3 font-semibold">Kelas</th>
-                                    <th className="px-4 py-3 font-semibold">Subjek</th>
-                                    <th className="px-4 py-3 font-semibold">Guru Tidak Hadir</th>
-                                    <th className="px-4 py-3 font-semibold">Guru Ganti</th>
-                                </tr>
-                            </thead>
-                            <tbody className="text-slate-700">
-                                {substitutionPlan.map((sub, index) => (
-                                    <tr key={`${sub.day}-${sub.time}-${sub.class}-${index}`} className="border-b border-slate-200 hover:bg-slate-50">
-                                        <td className="px-4 py-3 font-mono">{sub.time}</td>
-                                        <td className="px-4 py-3 font-medium">{sub.class}</td>
-                                        <td className="px-4 py-3">{sub.subject}</td>
-                                        <td className="px-4 py-3 text-slate-500">{sub.absentTeacherName}</td>
-                                        <td className="px-4 py-3">
-                                            {isEditing ? (
-                                                <div>
-                                                    <select
-                                                        value={sub.substituteTeacherId}
-                                                        onChange={(e) => handleSubstituteChange(index, e.target.value)}
-                                                        className="block w-full px-2 py-1 bg-white border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-sky-500 focus:border-sky-500 transition text-emerald-700 font-semibold"
-                                                    >
-                                                        {!getAvailableTeachers(sub.day, sub.time, index).some(t => t.id === sub.substituteTeacherId) && sub.substituteTeacherId !== 'LAIN_LAIN' && (
-                                                          <option key={sub.substituteTeacherId} value={sub.substituteTeacherId}>
-                                                            {sub.substituteTeacherName}
-                                                          </option>
-                                                        )}
-                                                        {getAvailableTeachers(sub.day, sub.time, index).map(teacher => (
-                                                          <option key={teacher.id} value={teacher.id}>
-                                                            {teacher.name}
-                                                          </option>
-                                                        ))}
-                                                        <option value="LAIN_LAIN">Lain-lain</option>
-                                                    </select>
-                                                    {sub.substituteTeacherId === 'LAIN_LAIN' && (
-                                                        <input
-                                                            type="text"
-                                                            value={sub.substituteTeacherName}
-                                                            onChange={(e) => handleCustomSubstituteNameChange(index, e.target.value)}
-                                                            placeholder="Masukkan nama pengganti"
-                                                            className="mt-2 block w-full px-2 py-1 bg-white border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-sky-500 text-emerald-700 font-semibold"
-                                                            aria-label="Nama Guru Ganti Lain-lain"
-                                                        />
-                                                    )}
-                                                </div>
-                                            ) : (
-                                                <span className="font-semibold text-emerald-700">
-                                                    {sub.substituteTeacherName || (sub.substituteTeacherId === 'LAIN_LAIN' ? '(Nama belum diisi)' : '')}
-                                                </span>
-                                            )}
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                      <div className="space-y-4">
+                        {substitutionPlan.map((sub, index) => (
+                           <SubstitutionCard
+                                key={`${sub.day}-${sub.time}-${sub.class}-${index}`}
+                                substitution={sub}
+                                availableTeachers={getAvailableTeachers(sub.day, sub.time, index)}
+                                onSubstituteChange={(newTeacherId) => handleSubstituteChange(index, newTeacherId)}
+                                onCustomSubstituteNameChange={(newName) => handleCustomSubstituteNameChange(index, newName)}
+                                isEditing={isEditing}
+                            />
+                        ))}
                       </div>
                   ) : (
-                      <div className="text-center p-8">
+                      <div className="text-center p-8 bg-white rounded-xl shadow-lg border border-slate-200">
                           <p className="text-slate-600">Tiada kelas yang perlu diganti untuk guru ini pada hari tersebut.</p>
                       </div>
                   )}
