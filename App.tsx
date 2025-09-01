@@ -1,4 +1,5 @@
 
+
 import React, { useState, useCallback, useRef } from 'react';
 import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
@@ -6,7 +7,6 @@ import { TEACHERS, TIMETABLE } from './constants';
 import { Teacher, Substitution, AbsentTeacherInfo } from './types';
 import { generateSubstitutionPlan } from './services/geminiService';
 import LoadingSpinner from './components/LoadingSpinner';
-import SubstitutionCard from './components/SubstitutionCard';
 
 const GraduationCapIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M22 10v6M2 10l10-5 10 5-10 5z"></path><path d="M6 12v5c0 1.7.7 3.2 1.9 4.2a2 2 0 0 0 2.2 0c1.2-1 1.9-2.5 1.9-4.2v-5"></path></svg>
@@ -21,7 +21,7 @@ const App: React.FC = () => {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [substitutionPlan, setSubstitutionPlan] = useState<Substitution[] | null>(null);
-  const [reportInfo, setReportInfo] = useState<{ date: Date; day: string } | null>(null);
+  const [reportInfo, setReportInfo] = useState<{ date: Date; day: string; absentTeachers: { name: string; reason: string }[] } | null>(null);
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const pdfContentRef = useRef<HTMLDivElement>(null);
 
@@ -193,8 +193,13 @@ const App: React.FC = () => {
         }
       }
 
+      const absentTeachersForReport = absentTeachersWithData.map(t => ({
+        name: t.teacher.name,
+        reason: t.reason,
+      }));
+
       setSubstitutionPlan(resolvedPlan);
-      setReportInfo({ date: dateObj, day: dayName });
+      setReportInfo({ date: dateObj, day: dayName, absentTeachers: absentTeachersForReport });
     } catch (err: any) {
       setError(err.message || 'Ralat tidak dijangka berlaku.');
     } finally {
@@ -223,7 +228,8 @@ const App: React.FC = () => {
       });
 
       const addFooter = (doc: jsPDF) => {
-        const pageCount = doc.getNumberOfPages();
+        // FIX: Property 'getNumberOfPages' does not exist on type of 'doc.internal'. Using 'doc.internal.pages.length' instead.
+        const pageCount = doc.internal.pages.length;
         for (let i = 1; i <= pageCount; i++) {
             doc.setPage(i);
             const pdfWidth = doc.internal.pageSize.getWidth();
@@ -294,13 +300,13 @@ const App: React.FC = () => {
                   <label htmlFor="absence-date" className="block text-sm font-medium text-slate-700 mb-2">
                     Tarikh Tidak Hadir
                   </label>
-                  <input type="date" id="absence-date" value={absenceDate} onChange={(e) => setAbsenceDate(e.target.value)} className="block w-full px-4 py-3 bg-slate-50 border border-slate-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500 transition" required/>
+                  <input type="date" id="absence-date" value={absenceDate} onChange={(e) => setAbsenceDate(e.target.value)} className="block w-full px-4 py-3 bg-slate-50 border border-slate-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500 transition text-slate-900 placeholder:text-slate-400" required/>
                 </div>
                 <div>
                   <label htmlFor="preparer" className="block text-sm font-medium text-slate-700 mb-2">
                     Disediakan Oleh
                   </label>
-                  <input type="text" id="preparer" value={preparerName} onChange={(e) => setPreparerName(e.target.value)} placeholder="cth., Penolong Kanan Pentadbiran" className="block w-full px-4 py-3 bg-slate-50 border border-slate-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500 transition"/>
+                  <input type="text" id="preparer" value={preparerName} onChange={(e) => setPreparerName(e.target.value)} placeholder="cth., Penolong Kanan Pentadbiran" className="block w-full px-4 py-3 bg-slate-50 border border-slate-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500 transition text-slate-900 placeholder:text-slate-400"/>
                 </div>
               </div>
 
@@ -311,7 +317,7 @@ const App: React.FC = () => {
                     <div key={teacher.key} className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center p-4 bg-slate-50 rounded-lg border">
                       <div className="md:col-span-5">
                         <label htmlFor={`teacher-id-${index}`} className="sr-only">Guru</label>
-                        <select id={`teacher-id-${index}`} value={teacher.id} onChange={(e) => handleTeacherChange(index, 'id', e.target.value)} className="block w-full px-4 py-3 bg-white border border-slate-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500 transition" required>
+                        <select id={`teacher-id-${index}`} value={teacher.id} onChange={(e) => handleTeacherChange(index, 'id', e.target.value)} className="block w-full px-4 py-3 bg-white border border-slate-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500 transition text-slate-900" required>
                           <option value="" disabled>Pilih nama guru</option>
                           {TEACHERS.map((t) => (
                             <option 
@@ -326,7 +332,7 @@ const App: React.FC = () => {
                       </div>
                       <div className="md:col-span-6">
                         <label htmlFor={`reason-${index}`} className="sr-only">Sebab</label>
-                        <input type="text" id={`reason-${index}`} value={teacher.reason} onChange={(e) => handleTeacherChange(index, 'reason', e.target.value)} placeholder="Sebab (cth., Cuti Sakit)" className="block w-full px-4 py-3 bg-white border border-slate-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500 transition"/>
+                        <input type="text" id={`reason-${index}`} value={teacher.reason} onChange={(e) => handleTeacherChange(index, 'reason', e.target.value)} placeholder="Sebab (cth., Cuti Sakit)" className="block w-full px-4 py-3 bg-white border border-slate-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500 transition text-slate-900 placeholder:text-slate-400"/>
                       </div>
                       <div className="md:col-span-1">
                         <button type="button" onClick={() => removeTeacher(index)} disabled={absentTeachers.length <= 1} className="w-full h-full flex items-center justify-center text-red-500 hover:text-red-700 disabled:text-slate-300 disabled:cursor-not-allowed transition" aria-label="Padam Guru">
@@ -365,33 +371,91 @@ const App: React.FC = () => {
                   </div>
                 </div>
 
-                <div ref={pdfContentRef} className="p-4 bg-transparent rounded-xl">
+                <div ref={pdfContentRef} className="p-4 bg-white rounded-xl shadow-lg border border-slate-200">
                   {reportInfo && (
-                    <div className="p-6 mb-6 bg-white rounded-xl shadow-lg border border-slate-200">
+                    <div className="p-2 mb-6">
                       <h3 className="text-lg font-bold text-slate-800 mb-4 border-b border-slate-200 pb-3">Jadual Guru Ganti</h3>
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
-                          <div><p className="font-semibold text-slate-500">Disediakan Oleh:</p><p className="text-slate-800 font-medium">{preparerName || 'Tidak Dinyatakan'}</p></div>
-                          <div><p className="font-semibold text-slate-500">Tarikh:</p><p className="text-slate-800 font-medium">{reportInfo.date.toLocaleDateString('ms-MY', { day: 'numeric', month: 'long', year: 'numeric' })}</p></div>
-                          <div><p className="font-semibold text-slate-500">Hari:</p><p className="text-slate-800 font-medium">{reportInfo.date.toLocaleDateString('ms-MY', { weekday: 'long' })}</p></div>
+                          <div><p className="font-semibold text-slate-600">Disediakan Oleh:</p><p className="text-black font-medium">{preparerName || 'Tidak Dinyatakan'}</p></div>
+                          <div><p className="font-semibold text-slate-600">Tarikh:</p><p className="text-black font-medium">{reportInfo.date.toLocaleDateString('ms-MY', { day: 'numeric', month: 'long', year: 'numeric' })}</p></div>
+                          <div><p className="font-semibold text-slate-600">Hari:</p><p className="text-black font-medium">{reportInfo.date.toLocaleDateString('ms-MY', { weekday: 'long' })}</p></div>
+                      </div>
+                      <div className="mt-4 pt-4 border-t border-slate-200">
+                          <p className="font-semibold text-slate-600 text-sm">Senarai Guru Tidak Hadir:</p>
+                          <ul className="list-none mt-1 space-y-1 text-sm">
+                              {reportInfo.absentTeachers.map((teacher, index) => (
+                                  <li key={index} className="text-black font-medium">
+                                     {index + 1}. {teacher.name} <span className="text-slate-500 font-normal">({teacher.reason})</span>
+                                  </li>
+                              ))}
+                          </ul>
                       </div>
                     </div>
                   )}
                   
                   {substitutionPlan.length > 0 ? (
-                      <div className="space-y-4">
-                        {substitutionPlan.map((sub, index) => (
-                           <SubstitutionCard
-                                key={`${sub.day}-${sub.time}-${sub.class}-${index}`}
-                                substitution={sub}
-                                availableTeachers={getAvailableTeachers(sub.day, sub.time, index)}
-                                onSubstituteChange={(newTeacherId) => handleSubstituteChange(index, newTeacherId)}
-                                onCustomSubstituteNameChange={(newName) => handleCustomSubstituteNameChange(index, newName)}
-                                isEditing={isEditing}
-                            />
-                        ))}
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm text-left">
+                           <thead className="bg-slate-100 text-slate-600 uppercase">
+                                <tr>
+                                    <th className="px-4 py-3 font-semibold">Masa</th>
+                                    <th className="px-4 py-3 font-semibold">Kelas</th>
+                                    <th className="px-4 py-3 font-semibold">Subjek</th>
+                                    <th className="px-4 py-3 font-semibold">Guru Tidak Hadir</th>
+                                    <th className="px-4 py-3 font-semibold">Guru Ganti</th>
+                                </tr>
+                            </thead>
+                            <tbody className="text-slate-700">
+                                {substitutionPlan.map((sub, index) => (
+                                    <tr key={`${sub.day}-${sub.time}-${sub.class}-${index}`} className="border-b border-slate-200 hover:bg-slate-50">
+                                        <td className="px-4 py-3 font-mono">{sub.time}</td>
+                                        <td className="px-4 py-3 font-medium">{sub.class}</td>
+                                        <td className="px-4 py-3">{sub.subject}</td>
+                                        <td className="px-4 py-3 text-slate-500">{sub.absentTeacherName}</td>
+                                        <td className="px-4 py-3">
+                                            {isEditing ? (
+                                                <div>
+                                                    <select
+                                                        value={sub.substituteTeacherId}
+                                                        onChange={(e) => handleSubstituteChange(index, e.target.value)}
+                                                        className="block w-full px-2 py-1 bg-white border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-sky-500 focus:border-sky-500 transition text-emerald-700 font-semibold"
+                                                    >
+                                                        {!getAvailableTeachers(sub.day, sub.time, index).some(t => t.id === sub.substituteTeacherId) && sub.substituteTeacherId !== 'LAIN_LAIN' && (
+                                                          <option key={sub.substituteTeacherId} value={sub.substituteTeacherId}>
+                                                            {sub.substituteTeacherName}
+                                                          </option>
+                                                        )}
+                                                        {getAvailableTeachers(sub.day, sub.time, index).map(teacher => (
+                                                          <option key={teacher.id} value={teacher.id}>
+                                                            {teacher.name}
+                                                          </option>
+                                                        ))}
+                                                        <option value="LAIN_LAIN">Lain-lain</option>
+                                                    </select>
+                                                    {sub.substituteTeacherId === 'LAIN_LAIN' && (
+                                                        <input
+                                                            type="text"
+                                                            value={sub.substituteTeacherName}
+                                                            onChange={(e) => handleCustomSubstituteNameChange(index, e.target.value)}
+                                                            placeholder="Masukkan nama pengganti"
+                                                            className="mt-2 block w-full px-2 py-1 bg-white border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-sky-500 text-emerald-700 font-semibold"
+                                                            aria-label="Nama Guru Ganti Lain-lain"
+                                                        />
+                                                    )}
+                                                </div>
+                                            ) : (
+                                                <span className="font-semibold text-emerald-700">
+                                                    {sub.substituteTeacherName || (sub.substituteTeacherId === 'LAIN_LAIN' ? '(Nama belum diisi)' : '')}
+                                                </span>
+                                            )}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
                       </div>
                   ) : (
-                      <div className="text-center p-8 bg-white rounded-xl shadow-lg border border-slate-200">
+                      <div className="text-center p-8">
                           <p className="text-slate-600">Tiada kelas yang perlu diganti untuk guru ini pada hari tersebut.</p>
                       </div>
                   )}
