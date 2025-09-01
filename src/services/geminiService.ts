@@ -1,4 +1,4 @@
-import { Teacher, ScheduleEntry, Substitution, AbsentTeacherInfo } from '../types';
+import { Teacher, ScheduleEntry, Substitution } from '../types';
 
 export const generateSubstitutionPlan = async (
   absentTeachersInfo: { teacher: Teacher; reason: string }[],

@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { GoogleGenAI, Type } from "@google/genai";
-import { Teacher, ScheduleEntry, Substitution, AbsentTeacherInfo } from '../src/types';
+import type { Teacher, ScheduleEntry, Substitution } from '../src/types';
 
 if (!process.env.API_KEY) {
   throw new Error("API_KEY environment variable is not set");
