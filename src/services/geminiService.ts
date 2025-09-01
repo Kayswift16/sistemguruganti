@@ -1,4 +1,4 @@
-import { Teacher, ScheduleEntry, Substitution } from '../types';
+import { Teacher, ScheduleEntry, Substitution, AbsentTeacherInfo } from '../types';
 
 export const generateSubstitutionPlan = async (
   absentTeachersInfo: { teacher: Teacher; reason: string }[],
@@ -7,29 +7,29 @@ export const generateSubstitutionPlan = async (
   absenceDay: string,
 ): Promise<Substitution[]> => {
   try {
-    const response = await fetch('/.netlify/functions/gemini', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-            absentTeachersInfo,
-            allTeachers,
-            timetable,
-            absenceDay
-        }),
+    const response = await fetch('/api/gemini', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        absentTeachersInfo,
+        allTeachers,
+        timetable,
+        absenceDay,
+      }),
     });
 
     if (!response.ok) {
-        const errorBody = await response.json();
-        throw new Error(errorBody.error || `Request failed with status ${response.status}`);
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Failed to fetch substitution plan from the API.');
     }
 
-    const results = await response.json();
-    return results.sort((a: Substitution, b: Substitution) => a.time.localeCompare(b.time));
+    const plan: Substitution[] = await response.json();
+    return plan.sort((a, b) => a.time.localeCompare(b.time));
 
   } catch (error) {
-    console.error("Error calling Netlify function:", error);
+    console.error("Error calling backend API:", error);
     if (error instanceof Error) {
         throw new Error(`Gagal menjana pelan guru ganti: ${error.message}`);
     }

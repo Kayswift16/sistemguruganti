@@ -1,29 +1,12 @@
+import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { GoogleGenAI, Type } from "@google/genai";
-import type { Handler, HandlerEvent, HandlerContext } from "@netlify/functions";
+import { Teacher, ScheduleEntry, Substitution, AbsentTeacherInfo } from '../src/types';
 
-interface Teacher {
-  id: string;
-  name: string;
+if (!process.env.API_KEY) {
+  throw new Error("API_KEY environment variable is not set");
 }
 
-interface ScheduleEntry {
-  day: string;
-  time: string;
-  class: string;
-  subject: string;
-  teacherId: string;
-}
-
-interface Substitution {
-  day: string;
-  time: string;
-  class: string;
-  subject: string;
-  absentTeacherName: string;
-  substituteTeacherId: string;
-  substituteTeacherName: string;
-  justification: string;
-}
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 const generatePrompt = (
   absentTeacher: Teacher,
@@ -38,8 +21,6 @@ const generatePrompt = (
   
   const absentTeacherSchedule = relevantTimetableForDay.filter(entry => entry.teacherId === absentTeacher.id);
 
-  const availableTeachers = allTeachers.filter(t => t.id !== absentTeacher.id);
-
   return `
     Anda adalah Penolong Kanan Pentadbiran yang bijak di sebuah sekolah. Tugas anda adalah untuk mencari guru ganti terbaik untuk guru yang tidak hadir pada hari tertentu.
 
@@ -48,7 +29,7 @@ const generatePrompt = (
     - Guru Tidak Hadir: ${absentTeacher.name} (ID: ${absentTeacher.id})
     - Sebab Tidak Hadir: ${reason}
     - Jadual Waktu Penuh Sekolah untuk Hari ${absenceDay}: ${JSON.stringify(relevantTimetableForDay)}
-    - Senarai Semua Guru Yang Boleh Mengganti: ${JSON.stringify(availableTeachers)}
+    - Senarai Semua Guru: ${JSON.stringify(allTeachers)}
 
     TUGASAN:
     Berdasarkan data yang diberikan, sila laksanakan langkah-langkah berikut untuk hari ${absenceDay} SAHAJA:
@@ -85,62 +66,45 @@ const responseSchema = {
   },
 };
 
-const handler: Handler = async (event: HandlerEvent, context: HandlerContext) => {
-  if (event.httpMethod !== 'POST') {
-    return { statusCode: 405, body: JSON.stringify({ error: 'Method Not Allowed' }) };
-  }
-
-  const apiKey = process.env.API_KEY;
-  if (!apiKey) {
-    return { statusCode: 500, body: JSON.stringify({ error: "API_KEY environment variable is not set" }) };
-  }
-
-  try {
-    const ai = new GoogleGenAI({ apiKey });
-    const { absentTeachersInfo, allTeachers, timetable, absenceDay } = JSON.parse(event.body || '{}');
-
-    if (!absentTeachersInfo || !allTeachers || !timetable || !absenceDay) {
-      return { statusCode: 400, body: JSON.stringify({ error: "Missing required parameters in request body." }) };
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+    if (req.method !== 'POST') {
+        res.setHeader('Allow', ['POST']);
+        return res.status(405).end('Method Not Allowed');
     }
     
-    const promises = absentTeachersInfo.map(async ({ teacher, reason }: { teacher: Teacher, reason: string }) => {
-      const prompt = generatePrompt(teacher, reason, allTeachers, timetable, absenceDay);
-      
-      const response = await ai.models.generateContent({
-        model: "gemini-2.5-flash",
-        contents: prompt,
-        config: {
-          responseMimeType: "application/json",
-          responseSchema: responseSchema,
-          temperature: 0.2,
-        },
-      });
+    try {
+        const { absentTeachersInfo, allTeachers, timetable, absenceDay } = req.body;
+        
+        const promises = absentTeachersInfo.map(async (info: { teacher: Teacher; reason: string }) => {
+          const { teacher, reason } = info;
+          const prompt = generatePrompt(teacher, reason, allTeachers, timetable, absenceDay);
+          
+          const response = await ai.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: prompt,
+            config: {
+              responseMimeType: "application/json",
+              responseSchema: responseSchema,
+              temperature: 0.2,
+            },
+          });
+    
+          const jsonText = response.text.trim();
+          const result = JSON.parse(jsonText) as Omit<Substitution, 'absentTeacherName'>[];
+          
+          return result.map(sub => ({
+            ...sub,
+            absentTeacherName: teacher.name,
+          }));
+        });
+    
+        const results = await Promise.all(promises);
+        const flattenedResults = results.flat();
+        
+        return res.status(200).json(flattenedResults);
 
-      const jsonText = response.text.trim();
-      const result = JSON.parse(jsonText) as Omit<Substitution, 'absentTeacherName'>[];
-      
-      return result.map(sub => ({
-        ...sub,
-        absentTeacherName: teacher.name,
-      }));
-    });
-
-    const results = await Promise.all(promises);
-    const flatResults = results.flat();
-
-    return {
-      statusCode: 200,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(flatResults),
-    };
-
-  } catch (error: any) {
-    console.error("Error in Netlify function:", error);
-    return {
-      statusCode: 500,
-      body: JSON.stringify({ error: error.message || "An internal server error occurred." }),
-    };
-  }
-};
-
-export { handler };
+    } catch (error) {
+        console.error("Error in Vercel function:", error);
+        return res.status(500).json({ error: "Gagal menjana pelan guru ganti. Sila cuba lagi." });
+    }
+}
